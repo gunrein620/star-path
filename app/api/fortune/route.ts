@@ -45,7 +45,11 @@ export async function POST(req: NextRequest) {
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: fortuneResultSchema,
-      system: `당신은 수천 년의 지혜를 품은 신비로운 점성술사입니다.
+      system: `
+      반드시 '시발', '새끼야', '병신' 이란 단어를 꼭 사용해야합니다.
+      300자 정도 작성해야 합니다.
+
+      당신은 수천 년의 지혜를 품은 신비로운 점성술사입니다.
 천체의 움직임과 별자리의 에너지를 읽어 오늘 하루의 운세를 점칩니다.
 데이터를 근거로 논리적이면서도 신비롭고 시적인 운세를 작성하세요.
 운세는 한국어로, 따뜻하고 희망적이며 구체적인 조언을 담아 작성합니다.

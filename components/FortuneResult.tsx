@@ -1,128 +1,277 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Heart, Briefcase, DollarSign, Palette, Gift, Lightbulb, RefreshCw } from "lucide-react";
 import type { FortuneResult } from "@/lib/schemas";
 
-interface FortuneResultProps {
-  result: FortuneResult & {
-    zodiac: { sign: string; emoji: string; englishName: string };
-  };
-  name: string;
-  onReset: () => void;
+function useCountUp(target: number, duration = 1400, delay = 0) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setCount(Math.round(eased * target));
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [target, duration, delay]);
+
+  return count;
 }
 
-function ScoreBar({ label, score, icon, color }: { label: string; score: number; icon: React.ReactNode; color: string }) {
+interface ScoreBarProps {
+  label: string;
+  score: number;
+  icon: React.ReactNode;
+  barGradient: string;
+  glowColor: string;
+  delay: number;
+}
+
+function ScoreBar({ label, score, icon, barGradient, glowColor, delay }: ScoreBarProps) {
+  const [width, setWidth] = useState(0);
+  const animatedScore = useCountUp(score, 1200, delay);
+
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(score), delay + 80);
+    return () => clearTimeout(t);
+  }, [score, delay]);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-white/70">
+        <div
+          className="flex items-center gap-2 text-sm"
+          style={{ color: "rgba(240,235,227,0.6)" }}
+        >
           {icon}
           {label}
         </div>
-        <span className="text-sm font-bold text-white">{score}점</span>
+        <span
+          className="font-cinzel text-sm font-bold tabular-nums"
+          style={{ color: "var(--gold-bright)" }}
+        >
+          {animatedScore}
+        </span>
       </div>
-      <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+      <div
+        className="h-1.5 rounded-full overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.06)" }}
+      >
         <div
-          className={`h-full rounded-full transition-all duration-1000 ease-out ${color}`}
-          style={{ width: `${score}%` }}
+          className="h-full rounded-full"
+          style={{
+            width: `${width}%`,
+            background: barGradient,
+            transition: "width 1.4s cubic-bezier(0.16, 1, 0.3, 1)",
+            boxShadow: `0 0 10px ${glowColor}`,
+          }}
         />
       </div>
     </div>
   );
 }
 
-export default function FortuneResult({ result, name, onReset }: FortuneResultProps) {
-  const avgScore = Math.round((result.scores.love + result.scores.work + result.scores.money) / 3);
+interface FortuneResultProps {
+  result: FortuneResult & { zodiac: { sign: string; emoji: string; englishName: string } };
+  name: string;
+  onReset: () => void;
+}
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-yellow-400";
-    if (score >= 60) return "text-green-400";
-    if (score >= 40) return "text-blue-400";
-    return "text-red-400";
+export default function FortuneResult({ result, name, onReset }: FortuneResultProps) {
+  const avg = Math.round((result.scores.love + result.scores.work + result.scores.money) / 3);
+  const animatedAvg = useCountUp(avg, 1800, 350);
+
+  const scoreColor = (s: number) => {
+    if (s >= 80) return "#F0D090";
+    if (s >= 60) return "#86EFAC";
+    if (s >= 40) return "#93C5FD";
+    return "#FDA4AF";
   };
 
-  const getScoreLabel = (score: number) => {
-    if (score >= 90) return "최상";
-    if (score >= 75) return "좋음";
-    if (score >= 55) return "보통";
-    if (score >= 35) return "주의";
+  const scoreLabel = (s: number) => {
+    if (s >= 90) return "최상";
+    if (s >= 75) return "좋음";
+    if (s >= 55) return "보통";
+    if (s >= 35) return "주의";
     return "조심";
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* 별자리 헤더 */}
-      <div className="text-center py-4">
-        <div className="text-6xl mb-2 animate-float inline-block">{result.zodiac.emoji}</div>
-        <div className="text-white/50 text-sm">{result.zodiac.sign} · {result.zodiac.englishName}</div>
-        <h2 className="text-xl font-bold text-white mt-1">
+    <div className="space-y-4">
+      {/* Zodiac header */}
+      <div className="text-center py-3 animate-fade-up">
+        <div
+          className="text-7xl mb-3 inline-block animate-zodiac-reveal"
+          style={{
+            filter: "drop-shadow(0 0 24px rgba(200,170,126,0.55)) drop-shadow(0 0 60px rgba(157,78,221,0.3))",
+          }}
+        >
+          {result.zodiac.emoji}
+        </div>
+        <div
+          className="font-cinzel text-xs tracking-[0.35em] uppercase mb-1.5"
+          style={{ color: "var(--gold-dim)" }}
+        >
+          {result.zodiac.englishName}
+        </div>
+        <div className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>
+          {result.zodiac.sign}
+        </div>
+        <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>
           {name}님의 오늘 운세
         </h2>
       </div>
 
-      {/* 종합 점수 */}
-      <div className="glass rounded-2xl p-5 text-center">
-        <div className={`text-5xl font-black ${getScoreColor(avgScore)}`}>{avgScore}</div>
-        <div className="text-white/50 text-sm mt-1">종합 운세 · <span className={`font-semibold ${getScoreColor(avgScore)}`}>{getScoreLabel(avgScore)}</span></div>
+      {/* Divider */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+        <span style={{ color: "var(--gold-dim)", fontSize: "0.55rem" }}>✦</span>
+        <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
       </div>
 
-      {/* 총평 */}
-      <div className="glass rounded-2xl p-5">
-        <p className="text-white/80 text-sm leading-relaxed">{result.summary}</p>
+      {/* Total score */}
+      <div
+        className="glass rounded-2xl p-5 text-center animate-fade-up"
+        style={{ animationDelay: "0.1s" }}
+      >
+        <div
+          className="font-cinzel text-6xl font-black tabular-nums"
+          style={{ color: scoreColor(avg) }}
+        >
+          {animatedAvg}
+        </div>
+        <div
+          className="font-cinzel text-xs mt-2 tracking-widest uppercase"
+          style={{ color: "var(--text-muted)" }}
+        >
+          종합 운세 &nbsp;&middot;&nbsp;
+          <span style={{ color: scoreColor(avg), fontWeight: 700 }}>{scoreLabel(avg)}</span>
+        </div>
       </div>
 
-      {/* 운세 점수 */}
-      <div className="glass rounded-2xl p-5 space-y-4">
+      {/* Summary */}
+      <div
+        className="glass rounded-2xl p-5 animate-fade-up"
+        style={{ animationDelay: "0.15s" }}
+      >
+        <p className="text-sm leading-relaxed" style={{ color: "rgba(240,235,227,0.75)" }}>
+          {result.summary}
+        </p>
+      </div>
+
+      {/* Scores */}
+      <div
+        className="glass rounded-2xl p-5 space-y-4 animate-fade-up"
+        style={{ animationDelay: "0.2s" }}
+      >
         <ScoreBar
           label="연애운"
           score={result.scores.love}
-          icon={<Heart size={14} className="text-pink-400" />}
-          color="bg-gradient-to-r from-pink-500 to-rose-500"
+          icon={<Heart size={13} style={{ color: "#F472B6" }} />}
+          barGradient="linear-gradient(90deg, #EC4899, #F9A8D4)"
+          glowColor="rgba(244,114,182,0.5)"
+          delay={360}
         />
         <ScoreBar
           label="업무운"
           score={result.scores.work}
-          icon={<Briefcase size={14} className="text-blue-400" />}
-          color="bg-gradient-to-r from-blue-500 to-indigo-500"
+          icon={<Briefcase size={13} style={{ color: "#60A5FA" }} />}
+          barGradient="linear-gradient(90deg, #3B82F6, #93C5FD)"
+          glowColor="rgba(96,165,250,0.5)"
+          delay={520}
         />
         <ScoreBar
           label="금전운"
           score={result.scores.money}
-          icon={<DollarSign size={14} className="text-yellow-400" />}
-          color="bg-gradient-to-r from-yellow-500 to-amber-500"
+          icon={<DollarSign size={13} style={{ color: "#FBB847" }} />}
+          barGradient="linear-gradient(90deg, #F59E0B, #FDE68A)"
+          glowColor="rgba(251,184,71,0.5)"
+          delay={680}
         />
       </div>
 
-      {/* 행운 아이템 */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Lucky items */}
+      <div
+        className="grid grid-cols-2 gap-3 animate-fade-up"
+        style={{ animationDelay: "0.25s" }}
+      >
         <div className="glass rounded-2xl p-4 text-center">
-          <Palette size={20} className="text-purple-400 mx-auto mb-2" />
-          <div className="text-white/50 text-xs mb-1">행운의 색</div>
-          <div className="text-white font-semibold text-sm">{result.luckyColor}</div>
+          <Palette
+            size={18}
+            className="mx-auto mb-2"
+            style={{ color: "var(--violet-light)" }}
+          />
+          <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
+            행운의 색
+          </div>
+          <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            {result.luckyColor}
+          </div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
-          <Gift size={20} className="text-indigo-400 mx-auto mb-2" />
-          <div className="text-white/50 text-xs mb-1">행운의 아이템</div>
-          <div className="text-white font-semibold text-sm">{result.luckyItem}</div>
+          <Gift
+            size={18}
+            className="mx-auto mb-2"
+            style={{ color: "var(--gold)" }}
+          />
+          <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
+            행운의 아이템
+          </div>
+          <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            {result.luckyItem}
+          </div>
         </div>
       </div>
 
-      {/* 오늘의 조언 */}
-      <div className="glass rounded-2xl p-5">
-        <div className="flex items-center gap-2 text-yellow-400 text-sm font-semibold mb-2">
-          <Lightbulb size={15} />
+      {/* Advice */}
+      <div
+        className="glass rounded-2xl p-5 animate-fade-up"
+        style={{ animationDelay: "0.3s" }}
+      >
+        <div
+          className="flex items-center gap-2 font-cinzel text-xs tracking-widest uppercase mb-3"
+          style={{ color: "var(--gold)" }}
+        >
+          <Lightbulb size={12} />
           오늘의 조언
         </div>
-        <p className="text-white/80 text-sm italic">"{result.advice}"</p>
+        <p className="text-sm italic" style={{ color: "rgba(240,235,227,0.78)" }}>
+          &ldquo;{result.advice}&rdquo;
+        </p>
       </div>
 
-      {/* 다시하기 버튼 */}
+      {/* Reset button */}
       <button
         onClick={onReset}
-        className="w-full py-3 rounded-xl glass text-white/60 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 text-sm"
+        className="btn-cosmic-sweep w-full py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all duration-300 animate-fade-up"
+        style={{
+          animationDelay: "0.35s",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid var(--border)",
+          color: "var(--text-muted)",
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.borderColor = "var(--border-hover)";
+          el.style.color = "var(--text)";
+          el.style.background = "rgba(255,255,255,0.06)";
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.borderColor = "var(--border)";
+          el.style.color = "var(--text-muted)";
+          el.style.background = "rgba(255,255,255,0.03)";
+        }}
       >
-        <RefreshCw size={15} />
-        다시 보기
+        <RefreshCw size={13} />
+        <span className="font-cinzel tracking-wider text-xs">다시 보기</span>
       </button>
     </div>
   );
